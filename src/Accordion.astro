@@ -1,0 +1,398 @@
+---
+export type AccordionItem = typeof import('./AccordionItem.astro').default
+
+interface Props {
+  children: AccordionItem | AccordionItem[]
+}
+---
+
+<div class='accordion'>
+  <ul class='accordion__wrapper'>
+    <slot />
+  </ul>
+</div>
+
+<script type='module'>
+  /**
+   * Collects all the accordion items in the document.
+   *
+   * @type {NodeListOf<HTMLLIElement>}
+   */
+  const accordionItems = [...document.querySelectorAll('.accordion__item')]
+
+  /**
+   * Calculates the height of the panel for the given accordion item.
+   *
+   * @param {HTMLLIElement} accordionItem - The accordion item to get the height for.
+   *
+   * @returns {number} The height of the panel.
+   */
+  const getPanelHeight = (accordionItem) => {
+    const accordionInner = accordionItem.querySelector('.panel__inner')
+    return accordionInner ? accordionInner.getBoundingClientRect().height : 0
+  }
+
+  /**
+   * Opens an accordion item by setting its height and adding the "is-active" class.
+   *
+   * @param {HTMLLIElement} accordionItem - The accordion item to open.
+   */
+  const openAccordionItem = (accordionItem) => {
+    /**
+     * Retrieves the header element for the given accordion item.
+     *
+     * @param {HTMLLIElement} accordionItem - The accordion item to get the header element for.
+     *
+     * @returns {HTMLDivElement} The header element.
+     */
+    const accordionItemHeader =
+      accordionItem.querySelector('.accordion__header')
+
+    /**
+     * Retrieves the toggle indicator element for the given accordion item's header.
+     *
+     * @param {HTMLLIElement} accordionItem - The accordion item to get the toggle indicator for.
+     *
+     * @returns {HTMLDivElement} The toggle indicator element.
+     */
+    const accordionToggleIndicator = accordionItem.querySelector(
+      '.header__toggle-indicator'
+    )
+
+    /**
+     * Retrieves the accordion panel element for the given accordion item.
+     *
+     * @param {HTMLLIElement} accordionItem - The accordion item to get the panel for.
+     *
+     * @returns {HTMLDivElement} The accordion panel element.
+     */
+    const accordionPanel = accordionItem.querySelector('.accordion__panel')
+
+    /**
+     * Sets the height of the panel to the height of the inner element.
+     */
+    accordionPanel.style.height = `${getPanelHeight(accordionItem)}px`
+
+    /**
+     * Adds the "is-active" class to the accordion item.
+     */
+    accordionItem.classList.add('is-active')
+
+    /**
+     * Sets the aria-expanded attribute on the header element to "true".
+     */
+    accordionItemHeader.setAttribute('aria-expanded', true)
+
+    /**
+     * Replaces the toggle indicator with an SVG icon indicating that the
+     * accordion item is expanded.
+     */
+    accordionToggleIndicator.innerHTML = `<svg class="header__toggle-indicator" aria-hidden="true" data-prefix="fas" data-icon="minus" class="svg-inline--fa fa-minus fa-w-14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path fill="currentColor" d="M416 208H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h384c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z"/></svg>`
+  }
+
+  /**
+   * Closes an accordion item.
+   *
+   * @param {HTMLLIElement} accordionItem - The accordion item to close.
+   */
+  const closeAccordionItem = (accordionItem) => {
+    const [header, toggleIndicator, panel] = [
+      accordionItem.querySelector('.accordion__header'),
+      accordionItem.querySelector('.header__toggle-indicator'),
+      accordionItem.querySelector('.accordion__panel')
+    ]
+
+    /**
+     * Removes the "is-active" class from the accordion item.
+     */
+    accordionItem.classList.remove('is-active')
+
+    /**
+     * Sets the height of the panel to 0.
+     */
+    panel.style.height = 0
+
+    /**
+     * Focuses the header element.
+     */
+    header.focus()
+
+    /**
+     * Sets the aria-expanded attribute on the header element to "false".
+     */
+    header.setAttribute('aria-expanded', false)
+
+    /**
+     * Replaces the toggle indicator with an SVG icon indicating that the
+     * accordion item is closed.
+     */
+    toggleIndicator.innerHTML = `<svg class="header__toggle-indicator" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path fill="currentColor" d="M416 208H272V64c0-17.67-14.33-32-32-32h-32c-17.67 0-32 14.33-32 32v144H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h144v144c0 17.67 14.33 32 32 32h32c17.67 0 32-14.33 32-32V304h144c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z"/></svg>`
+
+    /**
+     * Return immediately if the element is already removed from the DOM
+     */
+    if (!panel.parentElement) return
+  }
+
+  /**
+   * Determines if the given accordion item is currently open.
+   *
+   * @param {HTMLLIElement} accordionItem - The accordion item to check.
+   *
+   * @returns {boolean} Whether the accordion item is open.
+   */
+  const isAccordionOpen = (accordionItem) => {
+    /**
+     * Returns true if the accordion item has the "is-active" class, indicating that it is open.
+     */
+    return Boolean(accordionItem.classList.contains('is-active'))
+  }
+  /**
+   * Toggles the open state of the given accordion item.
+   *
+   * @param {Event} event - The event that triggered the function.
+   *
+   * @returns {undefined}
+   */
+  function toggleAccordionItem() {
+    const accordionItem = event.target.closest('.accordion__item')
+    if (!accordionItem) return
+
+    /**
+     * If the accordion item is already open, close it.
+     */
+    if (isAccordionOpen(accordionItem)) {
+      closeAccordionItem(accordionItem)
+    } else {
+      /**
+       * Otherwise, open the accordion item.
+       */
+      openAccordionItem(accordionItem)
+    }
+  }
+
+  /**
+   * Recalculates the height of all accordion items with the "is-active" class.
+   *
+   * @description This function is called whenever the window resizes, so that all
+   * accordion items that are currently open are given the correct height.
+   *
+   * @returns {undefined}
+   */
+  function recalculateHeight() {
+    /**
+     * Gets an array of all the accordion items that have the "is-active" class.
+     *
+     * @type {Array<HTMLLIElement>}
+     */
+    const toggledAccordionItems = Array.from(accordionItems).filter((item) =>
+      item.classList.contains('is-active')
+    )
+
+    /**
+     * Loops over the array of accordion items and sets the height of each
+     * accordion panel to its calculated height.
+     */
+    toggledAccordionItems.forEach((item) => {
+      const panel = item.querySelector('.accordion__panel')
+      /**
+       * Sets the height of the panel to the calculated height.
+       */
+      panel.style.height = `${getPanelHeight(item)}px`
+    })
+  }
+
+  /**
+   * Loops over the array of accordion items and sets the id, aria-controls
+   * attribute, and aria-labelledby attribute on each item.
+   *
+   * @description This loop sets the id of the header element, the id of the
+   * accordion panel, and the aria-controls attribute on the header element to
+   * the id of the accordion panel. It also sets the aria-labelledby attribute on
+   * the accordion panel to the id of the header element.
+   *
+   * @type {void}
+   */
+  for (const [index, item] of accordionItems.entries()) {
+    /**
+     * Retrieves the header element for the given accordion item.
+     *
+     * @type {HTMLDivElement}
+     */
+    const header = item.querySelector('.accordion__header')
+
+    /**
+     * Retrieves the accordion panel element for the given accordion item.
+     *
+     * @type {HTMLDivElement}
+     */
+    const panel = item.querySelector('.accordion__panel')
+
+    /**
+     * Sets the id of the header element to "accordion-itemX" where X is the
+     * index of the accordion item plus one.
+     */
+    header.id = `accordion-item${index + 1}`
+
+    /**
+     * Sets the id of the accordion panel to "itemX" where X is the index of the
+     * accordion item plus one.
+     */
+    panel.id = `item${index + 1}`
+
+    /**
+     * Sets the aria-controls attribute on the header element to the id of the
+     * accordion panel.
+     */
+    header.setAttribute('aria-controls', `item${index + 1}`)
+
+    /**
+     * Sets the aria-labelledby attribute on the accordion panel to the id of the
+     * header element.
+     */
+    panel.setAttribute('aria-labelledby', `accordion-item${index + 1}`)
+  }
+
+  /**
+   * Adds an event listener to the document that listens for keydown events.
+   * If the Escape key is pressed while the user is inside an accordion item and
+   * the item is open, the event listener will call the `closeAccordionItem`
+   * function to close the accordion item.
+   *
+   * @description This event listener is used to allow the user to close an
+   * open accordion item when they press the Escape key.
+   *
+   * @type {void}
+   */
+  document.addEventListener('keydown', (event) => {
+    /**
+     * Retrieves the closest ancestor of the event target that has the
+     * ".accordion__item" class. If no such ancestor exists, returns null.
+     *
+     * @type {HTMLLIElement|null}
+     */
+    const accordionItem = event.target.closest('.accordion__item')
+
+    /**
+     * Checks if the key pressed is the Escape key and if the user is inside an
+     * accordion item.
+     *
+     * @type {boolean}
+     */
+    if (event.key !== 'Escape' || !accordionItem) return
+
+    /**
+     * Checks if the accordion item is open.
+     *
+     * @type {boolean}
+     */
+    if (isAccordionOpen(accordionItem)) {
+      /**
+       * Closes the accordion item.
+       */
+      closeAccordionItem(accordionItem)
+    }
+  })
+
+  /**
+   * Adds an event listener to the document that listens for keydown events.
+   * If the user presses the down arrow key while inside an open accordion item,
+   * the event listener will focus the next open accordion item.
+   *
+   * @description This event listener is used to allow the user to navigate
+   * through open accordion items using the down arrow key.
+   *
+   * @type {void}
+   */
+  document.addEventListener('keydown', (event) => {
+    /**
+     * Retrieves the closest ancestor of the event target that has the
+     * ".accordion__header" class. If no such ancestor exists, returns null.
+     *
+     * @type {HTMLDivElement|null}
+     */
+    const targetElement = event.target.closest('.accordion__header')
+
+    /**
+     * If the target element is null, return immediately.
+     *
+     * @type {void}
+     */
+    if (!targetElement) return
+
+    /**
+     * Retrieves the closest ancestor of the target element that has the
+     * ".accordion__wrapper" class.
+     *
+     * @type {HTMLDivElement}
+     */
+    const accordionWrapper = targetElement.closest('.accordion__wrapper')
+
+    /**
+     * Retrieves the index of the target element in the accordion wrapper's
+     * list of accordion items.
+     *
+     * @type {number}
+     */
+    const index = [
+      ...accordionWrapper.querySelectorAll('.accordion__item')
+    ].indexOf(targetElement.closest('.accordion__item'))
+
+    /**
+     * Defines a function that returns the next open accordion item if the user
+     * presses the down arrow key, or the previous open accordion item if the
+     * user presses the up arrow key.
+     *
+     * @type {(string) => HTMLDivElement|null}
+     */
+    const targetItem = (key) => {
+      switch (key) {
+        case 'ArrowDown':
+          /**
+           * Returns the next open accordion item if the user presses the down arrow key.
+           *
+           * @type {HTMLDivElement|null}
+           */
+          return index < accordionItems.length - 1
+            ? accordionItems[index + 1]
+            : null
+
+        case 'ArrowUp':
+          /**
+           * Returns the previous open accordion item if the user presses the up arrow key.
+           *
+           * @type {HTMLDivElement|null}
+           */
+          return index > 0 ? accordionItems[index - 1] : null
+      }
+    }
+
+    /**
+     * Retrieves the target element if the user pressed the down or up arrow key.
+     *
+     * @type {HTMLDivElement|null}
+     */
+    const target = targetItem(event.key)
+
+    /**
+     * Prevents the default behavior of the keydown event if the user pressed the
+     * down or up arrow key, and focuses the target element.
+     *
+     * @type {void}
+     */
+    if (target) {
+      event.preventDefault()
+      target.querySelector('.accordion__header').focus()
+    }
+  })
+
+  window.toggleAccordionItem = toggleAccordionItem
+  window.onresize = recalculateHeight
+</script>
+
+<style is:global>
+  .accordion__wrapper {
+    list-style: none;
+    padding: 0;
+  }
+</style>

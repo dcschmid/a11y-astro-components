@@ -3,3 +3,5 @@
 
 export { default as SkipLinks } from './src/SkipLinks.astro';
 export { default as DarkMode } from './src/DarkMode.astro';
+export { default as Accordion } from './src/Accordion.astro';
+export { default as AccordionItem } from './src/AccordionItem.astro';
