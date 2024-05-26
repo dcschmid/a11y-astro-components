@@ -1,0 +1,101 @@
+---
+interface Props {
+  className?: string
+  href?: string
+  text?: string
+}
+
+const {
+  className = 'skip-links',
+  href = '#main-content',
+  text = 'Skip to main content'
+} = Astro.props
+---
+
+<div class={className} data-classname='{className}'>
+  <a href={href}>{text}</a>
+</div>
+
+<script type='module'>
+  /**
+   * This function will query the DOM for the skip link, which should have a class
+   * name that matches the "className" prop.
+   *
+   * The function returns the queried element, or null if no matching element was
+   * found.
+   */
+  const skipLink = document.querySelector(`.${this.dataset.classname} a`)
+
+  /**
+   * This function will add an event listener to the skip link element (if it
+   * exists) that will listen for the "Enter" keydown event.
+   *
+   * If the "Enter" key is pressed, the function will:
+   *
+   * 1. Get the value of the href attribute of the skip link element.
+   * 2. Find the element in the DOM that matches the href value. If it exists,
+   *    set its focus and return.
+   * 3. If no matching element was found, fall back to the first <h1> element
+   *    and set its focus.
+   * 4. If no <h1> element was found, log a warning to the console.
+   */
+  if (skipLink) {
+    // Handle the "Enter" keydown event on the skip link
+    skipLink.addEventListener('keydown', (event) => {
+      // Make sure the event target is an <a> element
+      if (event.target.closest('a')) {
+        const key = event.key
+        // Only handle the Enter key
+        if (key !== 'Enter') return
+
+        // Get the value of the href attribute
+        const target = event.target.getAttribute('href')
+
+        // Find the element with the matching id
+        const targetElement = document.querySelector(target)
+
+        // If the element exists, set its focus and return
+        if (targetElement) {
+          targetElement.tabIndex = '-1'
+          targetElement.focus()
+          return
+        }
+
+        // If no matching element was found, fall back to the first <h1> element
+        const h1 = document.querySelector('h1')
+
+        // If an <h1> element was found, set its focus and return
+        if (h1) {
+          h1.tabIndex = '-1'
+          h1.focus()
+          return
+        }
+
+        // If all else failed, log a warning to the console
+        console.warn(
+          'SkipLinks are not set, either missing an h1 or main content id on the page.'
+        )
+      }
+    })
+  }
+</script>
+
+<style is:global>
+  .skip-links a {
+    color: var(--action-color, #222);
+    background-color: var(--background, #fff);
+    border-bottom-right-radius: 6px;
+    padding: 1rem 3.25rem;
+    position: absolute;
+    display: block;
+    z-index: 9999;
+    top: -100vh;
+    left: 0;
+  }
+
+  .skip-links a:hover,
+  .skip-links a:focus {
+    top: 0;
+    outline-offset: 2px;
+  }
+</style>
