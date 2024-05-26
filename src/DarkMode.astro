@@ -1,0 +1,169 @@
+---
+type Props = Record<string, never>;
+---
+
+<button class="darkmode-toggle" aria-pressed="false" aria-label="Toggle Dark Mode" transition:persist>
+  <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="32" height="32" viewBox="0 0 24 24">
+    <path
+      fill="currentColor"
+      d="M9.353 3C5.849 4.408 3 7.463 3 11.47A9.53 9.53 0 0 0 12.53 21c4.007 0 7.062-2.849 8.47-6.353C8.17 17.065 8.14 8.14 9.353 3z"
+    >
+    </path>
+  </svg>
+</button>
+
+<script is:inline>
+  /**
+   * Gets the user's preferred color scheme from localStorage
+   * @type {string|null}
+   */
+  let darkMode = localStorage.getItem("darkMode");
+
+  /**
+   * References the dark mode toggle button
+   * @type {HTMLButtonElement}
+   */
+  const darkModeToggle = document.querySelector(".darkmode-toggle");
+
+  /**
+   * Enables dark mode by adding the darkmode class to the document body
+   * and updating the toggle button.
+   * @param {boolean} [store=true] - Whether to store the preference in localStorage
+   * @return {void}
+   */
+  const enableDarkMode = (store = true) => {
+    /**
+     * Add the darkmode class to the document body to enable dark mode
+     */
+    document.body.classList.add("darkmode");
+
+    /**
+     * Update the dark mode toggle button to indicate that it's pressed
+     */
+    darkModeToggle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="32" height="32" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M13 3a1 1 0 1 0-2 0v1a1 1 0 1 0 2 0V3zM5.707 4.293a1 1 0 0 0-1.414 1.414l1 1a1 1 0 0 0 1.414-1.414l-1-1zm14 0a1 1 0 0 0-1.414 0l-1 1a1 1 0 0 0 1.414 1.414l1-1a1 1 0 0 0 0-1.414zM12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm-9 4a1 1 0 1 0 0 2h1a1 1 0 1 0 0-2H3zm17 0a1 1 0 1 0 0 2h1a1 1 0 1 0 0-2h-1zM6.707 18.707a1 1 0 1 0-1.414-1.414l-1 1a1 1 0 1 0 1.414 1.414l1-1zm12-1.414a1 1 0 0 0-1.414 1.414l1 1a1 1 0 0 0 1.414-1.414l-1-1zM13 20a1 1 0 1 0-2 0v1a1 1 0 1 0 2 0v-1z" fill="currentColor"/></svg>`;
+    darkModeToggle.setAttribute("aria-pressed", "true");
+
+    /**
+     * Store the preference in localStorage if requested
+     */
+    if (store) localStorage.setItem("darkMode", "enabled");
+  };
+
+  /**
+   * Disables dark mode by removing the darkmode class from the document body
+   * and resetting the toggle button.
+   * @param {boolean} [store=true] - Whether to store the preference in localStorage
+   * @return {void}
+   */
+  const disableDarkMode = (store = true) => {
+    /**
+     * Remove the darkmode class from the document body to disable dark mode
+     */
+    document.body.classList.remove("darkmode");
+
+    /**
+     * Reset the darkmode toggle button to its original appearance
+     */
+    darkModeToggle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="32" height="32" viewBox="0 0 24 24"><path fill="currentColor" d="M9.353 3C5.849 4.408 3 7.463 3 11.47A9.53 9.53 0 0 0 12.53 21c4.007 0 7.062-2.849 8.47-6.353C8.17 17.065 8.14 8.14 9.353 3z"/></svg>`;
+
+    /**
+     * Set the aria-pressed attribute to false to indicate the button is not pressed
+     */
+    darkModeToggle.setAttribute("aria-pressed", "false");
+
+    /**
+     * Store the preference in localStorage if requested
+     */
+    if (store) localStorage.setItem("darkMode", "disabled");
+  };
+
+  /**
+   * Checks user's preferred color scheme and toggles dark mode accordingly
+   * @param {boolean} [store=false] - Whether to store the preference in localStorage
+   * @return {void}
+   */
+  const checkPreference = (store = false) => {
+    /**
+     * Uses the prefers-color-scheme media query to determine if the user prefers a
+     * dark color scheme
+     * @link https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme
+     */
+    const prefersDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    /**
+     * If the user prefers a dark color scheme, enable dark mode
+     * without storing the preference in localStorage
+     */
+    prefersDarkMode ? enableDarkMode(false) : disableDarkMode(store);
+  };
+
+  /**
+   * Depending on the current state of the 'darkMode' variable, sets the dark mode
+   * state of the page
+   */
+  if (darkMode === "enabled") {
+    /**
+     * If the 'darkMode' variable is set to 'enabled', enable dark mode
+     */
+    enableDarkMode();
+  } else if (darkMode === "disabled") {
+    /**
+     * If the 'darkMode' variable is set to 'disabled', disable dark mode
+     */
+    disableDarkMode();
+  } else {
+    /**
+     * If the 'darkMode' variable is null or undefined, check the user's preferred
+     * color scheme and toggle dark mode accordingly
+     */
+    checkPreference();
+  }
+
+  /**
+   * Event handler for when the user clicks on the dark mode toggle
+   * @param {Event} event - The click event
+   * @return {void}
+   */
+  darkModeToggle.addEventListener("click", (_event) => {
+    /**
+     * Determines whether the current state of dark mode is enabled or disabled
+     * @type {boolean}
+     */
+    const isDarkMode = document.body.classList.contains("darkmode");
+
+    /**
+     * If dark mode is currently enabled, disable it; otherwise, enable it
+     */
+    isDarkMode ? disableDarkMode() : enableDarkMode();
+  });
+
+  /**
+   * Listens for view transitions and sets up the dark mode state accordingly
+   * @event astro:after-swap - The event fired by Astro after the current view has been swapped with the new view
+   * @return {void}
+   */
+  document.addEventListener("astro:after-swap", () => {
+    /**
+     * Retrieves the value of the 'darkMode' key from localStorage and stores it in the 'darkMode' variable
+     * @type {string|null}
+     */
+    const darkModeFromStorage = localStorage.getItem("darkMode");
+    if (darkModeFromStorage) {
+      /**
+       * If the 'darkMode' value is stored in localStorage, set the global 'darkMode' variable to it
+       */
+      darkMode = darkModeFromStorage;
+    } else {
+      /**
+       * If the 'darkMode' value is not stored in localStorage, set the global 'darkMode' variable to null
+       */
+      darkMode = null;
+    }
+
+    /**
+     * Depending on the current state of the 'darkMode' variable, sets the dark mode state of the page
+     */
+    if (darkMode === "enabled") enableDarkMode();
+    else if (darkMode === "disabled") disableDarkMode();
+    else checkPreference();
+  });
+</script>

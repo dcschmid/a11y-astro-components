@@ -2,3 +2,4 @@
 // Then, use this file to export everything you want your user to access.
 
 export { default as SkipLinks } from './src/SkipLinks.astro';
+export { default as DarkMode } from './src/DarkMode.astro';
