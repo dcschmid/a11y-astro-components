@@ -1,0 +1,451 @@
+---
+interface Props {
+  triggerId: string;
+  title: string;
+  closeText?: string;
+  children?: HTMLElement | HTMLElement[];
+}
+
+const { triggerId, title, closeText = "Close" } = Astro.props;
+---
+
+<dialog class="modal" aria-labelledby={triggerId}>
+  <div class="modal__inner">
+    <div class="modal__content">
+      <h3 tabindex="-1">
+        {title}
+      </h3>
+      <slot>Modal description.</slot>
+    </div>
+    <div class="modal__close">
+      <button>{closeText}</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  /**
+   * Represents an HTML element that can be focused with the keyboard.
+   *
+   * @type {HTMLAnchorElement | HTMLButtonElement | HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLDetailsElement}
+   */
+  type FocusableElement =
+    | HTMLAnchorElement
+    | HTMLButtonElement
+    | HTMLInputElement
+    | HTMLTextAreaElement
+    | HTMLSelectElement
+    | HTMLDetailsElement;
+
+  /**
+   * An array of all the <dialog> elements in the document.
+   *
+   * @type {NodeList<HTMLDialogElement>}
+   */
+  const modals = document.querySelectorAll<HTMLDialogElement>(".modal");
+
+  /**
+   * AbortController used to abort the trapFocus function when the user closes
+   * the modal.
+   *
+   * @type {AbortController | undefined}
+   */
+  let trapFocusController: AbortController | undefined;
+
+  /**
+   * AbortController used to abort the handleKeyboardInput function when the
+   * user closes the modal.
+   *
+   * @type {AbortController | undefined}
+   */
+  let keydownController: AbortController | undefined;
+
+  /**
+   * Returns an array of all the focusable elements within the given
+   * element. Focusable elements are elements that can be focused with the
+   * keyboard, such as <a>, <button>, <input>, <textarea>, <select>, and
+   * <details>. The elements are filtered to exclude elements with the
+   * "disabled" attribute.
+   *
+   * @param {HTMLElement} element - The element to search for focusable elements.
+   *
+   * @returns {Array<FocusableElement>} - An array of focusable elements.
+   */
+  const getKeyboardFocusableElements = (element: HTMLElement) => {
+    return Array.from(
+      element.querySelectorAll<FocusableElement>(
+        'a, button, input, textarea, select, details,[tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => !el.hasAttribute("disabled"));
+  };
+
+  /**
+   * Traps focus within the given modal element, allowing the user to navigate
+   * through the focusable elements using the Tab key.
+   *
+   * The function listens for the Tab keydown event and checks whether the user
+   * is currently focused on the first or last focusable element. If the user is
+   * focused on the last element and the Tab key is pressed without the shift key
+   * being held down, the function prevents the default behavior of the event and
+   * focuses the first focusable element. If the user is focused on the first
+   * element and the Tab key is pressed with the shift key being held down, the
+   * function prevents the default behavior of the event and focuses the last
+   * focusable element.
+   *
+   * @param {KeyboardEvent} event - The Tab keydown event.
+   * @param {HTMLDialogElement} modal - The modal element to trap focus within.
+   *
+   * @returns {void}
+   */
+  const trapFocus = (event: KeyboardEvent, modal: HTMLDialogElement) => {
+    const focusables = getKeyboardFocusableElements(modal);
+
+    // These will not be undefined as a modal always has at least one <button>
+    const firstFocusable = focusables[0]!;
+    const lastFocusable = focusables[focusables.length - 1]!;
+
+    if (document.activeElement === lastFocusable && event.key === "Tab" && !event.shiftKey) {
+      // Prevent the default behavior of the event and focus the first focusable element
+      event.preventDefault();
+      firstFocusable.focus();
+    }
+
+    if (document.activeElement === firstFocusable && event.key === "Tab" && event.shiftKey) {
+      // Prevent the default behavior of the event and focus the last focusable element
+      event.preventDefault();
+      lastFocusable.focus();
+    }
+  };
+
+  /**
+   * Opens a modal element, trapping focus within the modal element and preventing
+   * the user from closing the modal with the Escape key.
+   *
+   *The function shows the given modal element and sets focus to the first focusable
+   *element within the modal. The function also adds event listeners to the document
+   *and the modal element to trap focus within the modal and prevent the user from
+   *closing the modal with the Escape key.
+   *
+   * @param {HTMLDialogElement} modal - The modal element to open.
+   *
+   * @returns {void}
+   */
+  const openModal = (modal: HTMLDialogElement) => {
+    /**
+     * Retrieves the first focusable element within the modal and sets focus to it.
+     */
+    const modalTitle = modal.querySelector("h3");
+    const modalInner = modal.querySelector<HTMLDivElement>(".modal__inner");
+
+    /**
+     * Shows the modal element.
+     */
+    modal.showModal();
+
+    /**
+     * Sets focus to the first focusable element within the modal.
+     */
+    modalTitle!.focus();
+
+    /**
+     * Creates an AbortController to cancel the trapFocus and keydown event listeners.
+     */
+    trapFocusController = new AbortController();
+
+    /**
+     * Creates an AbortController to cancel the keydown event listener that listens for
+     * the Escape key.
+     */
+    keydownController = new AbortController();
+
+    /**
+     * Adds a keydown event listener to the document that listens for the Tab keydown
+     * event and traps focus within the modal element.
+     */
+    document.addEventListener("keydown", (e) => trapFocus(e, modal), { signal: trapFocusController.signal });
+
+    /**
+     * Adds a keydown event listener to the modal element that listens for the Escape keydown
+     * event and closes the modal if the Escape key is pressed.
+     */
+    modal.addEventListener("keydown", (event) => (event.key === "Escape" ? closeModal() : undefined), {
+      signal: keydownController.signal,
+    });
+
+    /**
+     * Adds a click event listener to the modal element that listens for a click event and
+     * closes the modal.
+     */
+    modal.addEventListener("click", () => closeModal(), { signal: keydownController.signal });
+
+    /**
+     * Adds a click event listener to the modal inner element that listens for a click event
+     * and prevents the event from bubbling up to the modal element and triggering the
+     * click event listener that closes the modal.
+     */
+    modalInner!.addEventListener("click", (event) => event.stopPropagation(), { signal: keydownController.signal });
+  };
+
+  /**
+   * Closes all modals that are currently open.
+   *
+   * @description This function is used to close all open modals when the user
+   * clicks outside of a modal or presses the Escape key.
+   *
+   * @type {void}
+   */
+  const closeModal = () => {
+    /**
+     * Iterates over all open modals and calls the close() method on each of them.
+     */
+    modals.forEach((modal) => {
+      const modalId = modal.getAttribute("aria-labelledby");
+      const modalTrigger = document.querySelector(`#${modalId}`) as HTMLButtonElement;
+
+      /**
+       * Focuses the trigger element before closing the modal so that the user is
+       * able to click the trigger again to open the modal.
+       */
+      modalTrigger.focus({ preventScroll: true });
+
+      /**
+       * Calls the close() method on the modal to close it.
+       */
+      modal.close();
+
+      /**
+       * Aborts the AbortController that was used to trap focus within the modal
+       * so that the user is able to tab out of the modal.
+       */
+      trapFocusController?.abort();
+
+      /**
+       * Aborts the AbortController that was used to listen for the Escape key
+       * so that the user is able to press other keys.
+       */
+      keydownController?.abort();
+    });
+  };
+
+  /**
+   * Iterates over all open modals and adds event listeners to them.
+   *
+   * @description This function is used to add event listeners to all open modals
+   * so that the user can open and close them.
+   *
+   * @type {void}
+   */
+  modals.forEach((modal) => {
+    /**
+     * Retrieves the value of the "aria-labelledby" attribute from the modal.
+     *
+     * @type {string}
+     */
+    const modalId = modal.getAttribute("aria-labelledby");
+
+    /**
+     * Retrieves the <button> element with the class name "modal__close".
+     *
+     * @type {HTMLButtonElement|null}
+     */
+    const modalCloseButton = modal.querySelector(".modal__close button");
+
+    /**
+     * Retrieves the element with the id that matches the value of the "aria-labelledby"
+     * attribute from the modal.
+     *
+     * @type {HTMLButtonElement|null}
+     */
+    const modalTrigger = document.querySelector(`#${modalId}`);
+
+    /**
+     * Throws an error if the trigger element is not found.
+     *
+     * @type {Error}
+     */
+    if (!modalTrigger) {
+      throw new Error(`Trigger element not found. \n
+      Did you forget to add a trigger element with id: "${modalId}"?`);
+    }
+
+    /**
+     * Adds an event listener to the trigger element that listens for a click event
+     * and calls the openModal function when the user clicks the trigger.
+     */
+    modalTrigger.addEventListener("click", () => openModal(modal));
+
+    /**
+     * Adds an event listener to the close button that listens for a click event
+     * and calls the closeModal function when the user clicks the close button.
+     */
+    modalCloseButton!.addEventListener("click", closeModal);
+  });
+
+  /**
+   * Overwrites the `window.close` function to call the `closeModal` function
+   * when the user tries to close the window using the `close` method.
+   *
+   * @description This is used to ensure that the modal is properly closed when
+   * the user tries to close the window.
+   *
+   * @type {void}
+   */
+  window.close = closeModal;
+
+  /**
+   * Adds an event listener to the document that listens for the "astro:after-swap" event.
+   * The event listener will iterate over all modal elements that were swapped in with
+   * the new view and re-add event listeners to the modal's trigger element and close button.
+   *
+   * @description This event listener is used to ensure that the modals are properly
+   * initialized after the view is swapped.
+   *
+   * @type {void}
+   */
+  document.addEventListener("astro:after-swap", () => {
+    /**
+     * Retrieves an array of all modal elements from the document.
+     *
+     * @description This array is used to re-add event listeners to the modal's trigger element
+     * and close button after the view is swapped.
+     *
+     * @type {NodeList<HTMLDialogElement>}
+     */
+    let modals = document.querySelectorAll<HTMLDialogElement>(".modal");
+
+    /**
+     * Iterates over all modal elements in the document and re-adds event listeners
+     * to the modal's trigger element and close button.
+     *
+     * @description This is called after the view is swapped to ensure that the modals
+     * are properly initialized.
+     *
+     * @type {void}
+     */
+    modals.forEach((modal) => {
+      /**
+       * Retrieves the id of the modal from the "aria-labelledby" attribute.
+       *
+       * @description This is used to find the trigger element and add an event listener
+       * to it.
+       *
+       * @type {string|null}
+       */
+      const modalId = modal.getAttribute("aria-labelledby");
+
+      /**
+       * Retrieves the close button element from the modal.
+       *
+       * @description This is used to add an event listener to the close button.
+       *
+       * @type {HTMLButtonElement|null}
+       */
+      const modalCloseButton = modal.querySelector(".modal__close button");
+
+      /**
+       * Retrieves the trigger element that is responsible for opening the modal.
+       *
+       * @description This is used to add an event listener to the trigger element.
+       *
+       * @type {HTMLButtonElement|null}
+       */
+      const modalTrigger = document.querySelector(`#${modalId}`);
+
+      /**
+       * Throws an error if the trigger element is not found.
+       *
+       * @description This is used to ensure that the trigger element is properly declared
+       * in the HTML.
+       *
+       * @type {Error}
+       */
+      if (!modalTrigger) {
+        throw new Error(`Trigger element not found. \n
+      Did you forget to add a trigger element with id: "${modalId}"?`);
+      }
+
+      /**
+       * Adds an event listener to the trigger element that listens for a click event
+       * and calls the openModal function when the user clicks the trigger.
+       *
+       * @description This is used to open the modal when the user clicks the trigger.
+       */
+      modalTrigger.addEventListener("click", () => openModal(modal));
+
+      /**
+       * Adds an event listener to the close button that listens for a click event
+       * and calls the closeModal function when the user clicks the close button.
+       *
+       * @description This is used to close the modal when the user clicks the close button.
+       */
+      modalCloseButton!.addEventListener("click", closeModal);
+    });
+  });
+</script>
+
+<style is:global>
+  dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+    filter: blur(6px);
+  }
+
+  :where(.modal) {
+    color: black;
+    background-color: white;
+    border: 0.5rem solid black;
+    border-radius: 1rem;
+    padding: 0;
+  }
+
+  .modal__inner {
+    width: clamp(30ch, 70%, 75ch);
+    border-radius: 1rem;
+    width: 100%;
+  }
+
+  .modal__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 2rem;
+  }
+
+  .modal__close {
+    width: 100%;
+  }
+
+  .modal__close button {
+    border: none;
+    background-color: lightgrey;
+    border-bottom-left-radius: 0.4rem;
+    border-bottom-right-radius: 0.4rem;
+    color: black;
+    text-align: right;
+    transition: background-color 0.15s ease-in-out;
+    width: 100%;
+    margin: 0;
+    padding: 0.5rem;
+  }
+
+  .modal__close button:hover,
+  .modal__close button:focus {
+    background-color: grey;
+    text-decoration: underline;
+  }
+
+  /* Animation */
+  dialog[open],
+  dialog[open]::backdrop {
+    animation: fadein 0.3s ease-in-out;
+  }
+
+  @keyframes fadein {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+</style>
